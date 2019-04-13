@@ -1,0 +1,214 @@
+---
+jupyter:
+  jupytext:
+    text_representation:
+      extension: .Rmd
+      format_name: rmarkdown
+      format_version: '1.0'
+      jupytext_version: 1.0.5
+  kernelspec:
+    display_name: Python 3
+    language: python
+    name: python3
+---
+
+Complete hand evaluator for a 4-card deal
+
+```{python}
+import pandas as pd
+import random
+```
+
+```{python}
+## This function is what passes game information to the various calculation functions, which return "hits"
+
+def get_score(hand):
+    labels = [x.label for x in hand]
+    values = [x.value for x in hand]
+    orders = [x.order for x in hand]
+    combos = get_combo_list(hand)
+    value_combos = get_combo_list(values)
+    label_combos = get_combo_list(labels)
+    order_combos = get_combo_list(orders)
+    fifteens = get_15(value_combos)
+    runs = get_runs(order_combos)
+    pairs = get_pairs(label_combos)
+#     flush = get_flush(hand)
+    score = 0
+    
+    for hit in fifteens:
+        score += 2
+    for hit in pairs:
+        score += 2
+    for hit in runs:
+        score += len(hit)
+    score += flush_score(hand)
+        
+    return score
+```
+
+```{python}
+def get_combo_list(hand):
+    combo_list = [(hand[0], hand[1], hand[2], hand[3])]
+    counter = 0
+    for x in hand:
+        cur_index = counter
+        [combo_list.append((x,y)) for y in hand[cur_index+1:]]
+        [combo_list.append((x,hand[cur_index+1], z)) for z in hand[cur_index+2:]]
+        [combo_list.append((x,hand[cur_index+2], z)) for z in hand[cur_index+3:]]
+        counter += 1
+
+    return combo_list
+```
+
+```{python}
+def get_15(combo_list):
+    hits = []
+    for x in combo_list:
+        if sum(x) == 15:
+            hits.append(x)
+    return hits
+
+
+def get_pairs(label_combos):
+    hits = []
+    for x in label_combos:
+        if (x[0] == x[1]) & (len(x) == 2):
+            hits.append(x)
+    return hits
+
+def get_runs(order_combos):
+    hits = []
+    for x in order_combos:
+        x_sorted = sorted(x)
+        if (len(x_sorted) > 2) & (tuple(x_sorted) == tuple(range(x_sorted[0],x_sorted[-1]+1))):
+            hits.append(x)
+    return hits
+
+def flush_score(hand):
+    suits = [x.suit for x in hand]
+    if suits[0] == suits[1] == suits[2] == suits[3]: # fix this later to account for 5-card flush
+        length = len(suits)
+    else:
+        length = 0
+    return length
+        
+
+
+        
+```
+
+```{python}
+SUITS = ['h', 'd', 's', 'c']
+LABELS = [1,2,3,4,5,6,7,8,9,10,'J','Q','K']
+VALUES = [1,2,3,4,5,6,7,8,9,10,10,10,10]
+ORDER = [1,2,3,4,5,6,7,8,9,10,11,12,13]
+
+z = zip(LABELS, VALUES, ORDER)
+card_props = list(z)
+card_props
+
+class Card:
+    def __init__(self, label, value, order, suit):
+        self.label = label
+        self.value = value
+        self.order = order
+        self.suit = suit
+    def __repr__(self): # Defines how the class is represented when printed
+        return str(self.suit) + str(self.label)
+
+class Deck:
+    def __init__(self):
+        self.cards = [Card(label, value, order, suit) for label,value,order in card_props for suit in SUITS]
+    def shuffle(self):
+        random.shuffle(self.cards)
+        print('The deck has been shuffled')
+        return self
+    
+    def deal(self):
+        hand = []
+        for x in range(4): # fix this later - skipping crib discard for now
+            hand.append(self.cards.pop()) 
+            ## because pop ~returns~ the card object it is popping, we can call append on it right away
+        return(hand)
+    
+class Player:
+    def __init__(self, name):
+        self.name = name
+        self.score = 0
+        self.hand = []
+    def set_hand(self, hand):
+        # Used by the new_round method
+        self.hand = hand
+    def score_hand(self):
+        hand = self.hand
+        print(str(self.name) + "'s hand is " + str(hand))
+        
+        return get_score(hand)  
+        
+class Game:
+    def __init__(self, names):
+        self.players = [Player(name) for name in names]
+    def new_round(self):
+        round_deck = Deck() # instantiates a new deck for this round
+        round_deck.shuffle()
+
+        for player in self.players:
+            player.set_hand(round_deck.deal())  # deals to each player from the shuffled round deck
+            print('A hand was dealt to ' + str(player.name))
+            
+    def score_round(self):
+        for player in self.players:
+            player.score += player.score_hand()
+            print(str(player.name) + ' scores ' + str(player.score_hand()) + ' points')
+        for player in self.players:
+            print(str(player.name) + ' has a total of ' + str(player.score) + ' points')
+```
+
+```{python}
+d = {label:(value, order) for label, value, order in card_props}
+
+def create_card(x):
+    suit = x[0]
+    y = x[1:]
+    
+    if (y == 'J') | (y == 'Q') | (y == 'K'):
+        label = y
+    else:
+        label = int(y)
+    
+    value = d[label][0]
+    order = d[label][1]
+    
+    return Card(label, value, order, suit)
+
+def create_card_list(l):
+    return[create_card(x) for x in l]
+```
+
+```{python}
+test_hand = create_card_list(['s5', 'h5', 'd5', 'c5'])
+test_player = Player('Mr. Test')
+test_player.set_hand(test_hand)
+```
+
+```{python}
+g = Game(['bob', 'joe'])
+```
+
+```{python}
+g.new_round()
+[x.hand for x in g.players[:]]
+```
+
+```{python}
+g.score_round()
+```
+
+```{python}
+test_player.score_hand()
+```
+
+```{python}
+
+```

@@ -1,0 +1,164 @@
+---
+jupyter:
+  jupytext:
+    text_representation:
+      extension: .Rmd
+      format_name: rmarkdown
+      format_version: '1.0'
+      jupytext_version: 1.0.5
+  kernelspec:
+    display_name: Python 3
+    language: python
+    name: python3
+---
+
+```{python}
+import pandas as pd
+import numpy as np
+import random
+```
+
+```{python}
+def get_combo_list(hand):
+    combo_list = [(hand[0], hand[1], hand[2], hand[3])]
+    print(combo_list)
+    counter = 0
+    for x in hand:
+        cur_index = counter
+        [combo_list.append((x,y)) for y in hand[cur_index+1:]]
+        [combo_list.append((x,hand[cur_index+1], z)) for z in hand[cur_index+2:]]
+        [combo_list.append((x,hand[cur_index+2], z)) for z in hand[cur_index+3:]]
+        counter += 1
+
+    return combo_list
+
+def get_15(combo_list):
+    hits = []
+    for x in combo_list:
+        if sum(x) == 15:
+            hits.append(x)
+    return hits
+
+
+def get_pairs(combo_list):
+    hits = []
+    for x in combo_list:
+        if (x[0] == x[1]) & (len(x) == 2):
+            hits.append(x)
+    return hits
+
+def get_runs(combo_list):
+    hits = []
+    for x in combo_list:
+        x_sorted = sorted(x)
+        if (len(x_sorted) > 2) & (tuple(x_sorted) == tuple(range(x_sorted[0],x_sorted[-1]+1))):
+            hits.append(x)
+    return hits     
+
+def get_flush(combos_suited):
+    for x in combos_suited:
+        print([y.label for y in x])
+        print([y.value for y in x])
+```
+
+```{python}
+## This function is what passes game information to the various calculation functions, which return "hits"
+
+def get_score(hand):
+    print(hand)
+    labels = [x.label for x in hand]
+    print(labels)
+    combos = get_combo_list(labels)
+    combos_suited = get_combo_list(hand)
+    fifteens = get_15(combos)
+    pairs = get_pairs(combos)
+    runs = get_runs(combos)
+    flush = get_flush(combos_suited)
+    score = 0
+    
+#     for hit in fifteens:
+#         score += 2
+#     for hit in pairs:
+#         score += 2
+#     for hit in runs:
+#         score += len(hit)
+        
+#     return score
+```
+
+```{python}
+deck = Deck()
+test_deck = deck.shuffle()
+test_hand = test_deck.deal()
+
+test_hand
+```
+
+```{python}
+get_combo_list(test_hand)
+```
+
+```{python}
+SUITS = ['H', 'D', 'S', 'C']
+LABELS = [1,2,3,4,5,6,7,8,9,10,'J','Q','K']
+VALUES = [1,2,3,4,5,6,7,8,9,10,10,10,10]
+
+z = zip(LABELS, VALUES)
+lv = list(z)
+lv
+```
+
+```{python}
+class Card:
+    def __init__(self, label, value, suit):
+        self.label = label
+        self.suit = suit
+        self.value = value
+    def __repr__(self): # Defines how the class is represented when printed
+        return str(self.suit) + str(self.label)
+
+class Deck:
+    def __init__(self):
+        self.cards = [Card(label, value, suit) for label,value in lv for suit in SUITS]
+    def shuffle(self):
+        random.shuffle(self.cards)
+        print('The deck has been shuffled')
+        return self
+    
+    def deal(self):
+
+        hand = []
+        for x in range(4): # fix this later - skipping crib discard for now
+            hand.append(self.cards.pop()) 
+            ## because pop ~returns~ the card object it is popping, we can call append on it right away
+        return(hand)
+    
+class Player:
+    def __init__(self, name):
+        self.name = name
+        self.score = 0
+        self.hand = []
+    def set_hand(self, hand):
+        # Used by the new_round method
+        self.hand = hand
+    def score_hand(self):
+        hand = self.hand
+        print(hand)
+        return get_score(hand)
+        
+        
+class Game:
+    def __init__(self, names):
+        self.players = [Player(name) for name in names]
+    def new_round(self):
+        round_deck = Deck() # instantiates a new deck for this round
+        round_deck.shuffle()
+
+        for player in self.players:
+            player.set_hand(round_deck.deal())  # deals to each player from the shuffled round deck
+            print('A hand was dealt to ' + str(player.name))
+```
+
+```{python}
+
+```
